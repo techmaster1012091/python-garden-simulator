@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Python-Based Garden Simulator</title>
+
+    <!-- ============ EXTERNAL DEPENDENCIES ============ -->
+    <!-- Tailwind CSS: utility classes used for all layout and colors -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        /* Remap Tailwind's "emerald" colors to a violet palette, so all the
+           existing emerald-* classes automatically become violet. */
+        tailwind.config = { theme: { extend: { colors: { emerald: {
+            50:'#f5f3ff',100:'#ede9fe',200:'#ddd6fe',300:'#c4b5fd',400:'#a78bfa',
+            500:'#8b5cf6',600:'#7c3aed',700:'#6d28d9',800:'#5b21b6',900:'#4c1d95',950:'#2e1065'
+        } } } } };
+    </script>
+    <!-- Lucide: icon library (the <i data-lucide="..."> tags) -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Pyodide: runs real Python in the browser via WebAssembly -->
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.26.1/full/pyodide.js"></script>
+
+    <!-- Our own CSS (fonts, glass panels, tree node hover) -->
+    <link rel="stylesheet" href="styles.css?v=4">
+</head>
+<body class="bg-[#120c2b] text-gray-100 min-h-screen p-4 flex flex-col justify-between overflow-x-hidden">
+    <!-- ============ BACKGROUND SCENE (decorative, inline SVG) ============
+         Layers, back to front: night gradient -> glow blobs -> network lines
+         -> glass dome -> circuit plants -> binary code -> bokeh -> fireflies -> vignette. -->
+    <div class="sky" aria-hidden="true" style="position:fixed;top:0;left:0;right:0;bottom:0;width:100vw;height:100vh;z-index:0;overflow:hidden;pointer-events:none;">
+      <svg class="scene" style="position:absolute;top:0;left:0;width:100%;height:100%;display:block;" viewBox="0 0 1600 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#2b1a66"/><stop offset=".55" stop-color="#1a1650"/><stop offset="1" stop-color="#0b2b3a"/>
+          </linearGradient>
+          <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#bae6fd" stop-opacity=".22"/><stop offset="1" stop-color="#67e8f9" stop-opacity=".05"/>
+          </linearGradient>
+          <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+            <feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <filter id="blur40"><feGaussianBlur stdDeviation="40"/></filter>
+          <filter id="blur8"><feGaussianBlur stdDeviation="8"/></filter>
+          <radialGradient id="vig" cx=".5" cy=".5" r=".75">
+            <stop offset=".45" stop-color="#05030f" stop-opacity="0"/><stop offset="1" stop-color="#05030f" stop-opacity=".75"/>
+          </radialGradient>
+          <clipPath id="domeClip"><rect x="1000" y="150" width="540" height="270"/></clipPath>
+
+          <!-- Reusable glowing circuit plant: stem, right-angle circuit traces ending in nodes, outlined leaves -->
+          <symbol id="plant" overflow="visible">
+            <g fill="none" stroke="#5eead4" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" filter="url(#glow)">
+              <path d="M0 0 V-330"/>
+              <path d="M0 -130 H-45 V-185"/><path d="M0 -205 H55 V-262"/><path d="M0 -270 H-32 V-320"/>
+              <path d="M0 -60 C-70 -70 -115 -110 -125 -160 C-70 -145 -25 -110 0 -60 Z"/>
+              <path d="M0 -60 C70 -70 115 -110 125 -160 C70 -145 25 -110 0 -60 Z"/>
+              <path d="M0 -60 L-95 -135 M0 -60 L95 -135" stroke-width="1.5" opacity=".7"/>
+            </g>
+            <g fill="#0b1b2e" stroke="#99f6e4" stroke-width="2.5" filter="url(#glow)">
+              <circle cx="-45" cy="-190" r="7"/><circle cx="55" cy="-267" r="7"/><circle cx="-32" cy="-325" r="7"/><circle cx="0" cy="-335" r="6"/>
+            </g>
+          </symbol>
+        </defs>
+
+        <rect width="1600" height="900" fill="url(#bg)"/>
+
+        <!-- soft colour blobs: violet foliage (left), teal haze (centre), green leaves (bottom right) -->
+        <g filter="url(#blur40)">
+          <ellipse cx="250" cy="330" rx="260" ry="200" fill="#7c3aed" opacity=".45"/>
+          <ellipse cx="620" cy="140" rx="220" ry="110" fill="#a855f7" opacity=".25"/>
+          <ellipse cx="1000" cy="620" rx="320" ry="160" fill="#0ea5e9" opacity=".18"/>
+          <ellipse cx="1350" cy="760" rx="300" ry="130" fill="#10b981" opacity=".28"/>
+        </g>
+
+        <!-- network of glowing nodes -->
+        <g stroke="#7dd3fc" stroke-width="1" opacity=".28" fill="none">
+          <path d="M60 640 L260 560 L420 690 L620 610 L800 740 L980 650 L1180 780 L1400 690 L1560 760"/>
+          <path d="M260 560 L330 420 L520 470 L620 610"/><path d="M520 470 L700 380 L900 470 L980 650"/>
+          <path d="M900 470 L1120 400 L1300 520 L1400 690"/><path d="M1300 520 L1480 430 L1560 560"/>
+          <path d="M420 690 L520 470"/><path d="M800 740 L900 470"/>
+        </g>
+        <g fill="#a5f3fc" opacity=".55">
+          <circle cx="260" cy="560" r="4"/><circle cx="420" cy="690" r="4"/><circle cx="620" cy="610" r="4"/><circle cx="800" cy="740" r="4"/>
+          <circle cx="980" cy="650" r="4"/><circle cx="1400" cy="690" r="4"/><circle cx="520" cy="470" r="4"/><circle cx="900" cy="470" r="4"/>
+          <circle cx="1300" cy="520" r="4"/><circle cx="700" cy="380" r="3"/><circle cx="1120" cy="400" r="3"/>
+        </g>
+
+        <!-- glass geodesic dome (right) -->
+        <g>
+          <ellipse cx="1270" cy="420" rx="230" ry="230" fill="url(#glass)" clip-path="url(#domeClip)"/>
+          <g fill="none" stroke="#bae6fd" stroke-width="1.5" opacity=".4" clip-path="url(#domeClip)">
+            <ellipse cx="1270" cy="420" rx="230" ry="230"/><ellipse cx="1270" cy="420" rx="185" ry="230"/>
+            <ellipse cx="1270" cy="420" rx="120" ry="230"/><ellipse cx="1270" cy="420" rx="50" ry="230"/>
+            <ellipse cx="1270" cy="360" rx="222" ry="40"/><ellipse cx="1270" cy="300" rx="196" ry="35"/>
+            <ellipse cx="1270" cy="250" rx="155" ry="28"/><ellipse cx="1270" cy="215" rx="104" ry="19"/>
+          </g>
+          <ellipse cx="1270" cy="420" rx="230" ry="42" fill="none" stroke="#bae6fd" stroke-width="2" opacity=".35"/>
+          <ellipse cx="1270" cy="440" rx="260" ry="60" fill="#10b981" opacity=".22" filter="url(#blur8)"/>
+        </g>
+
+        <!-- circuit plants: big left, small right (mirrored) -->
+        <use href="#plant" transform="translate(190 900) scale(1.25)"/>
+        <use href="#plant" transform="translate(1430 900) scale(-0.95 0.95)"/>
+
+        <!-- faint binary code (left) -->
+        <g font-family="monospace" font-size="20" fill="#a78bfa" opacity=".22">
+          <text x="30" y="430">0 1 0 1 1 0 1 0 0 1</text><text x="30" y="458">1 0 0 1 0 1 1 0 1 0</text>
+          <text x="30" y="486">0 1 1 0 0 1 0 1 1 1</text><text x="30" y="514">1 1 0 1 0 0 1 0 1 0</text>
+        </g>
+
+        <!-- bokeh -->
+        <g fill="#c4b5fd" filter="url(#blur8)">
+          <circle cx="140" cy="120" r="26" opacity=".18"/><circle cx="480" cy="220" r="18" opacity=".15"/>
+          <circle cx="840" cy="90" r="30" opacity=".12"/><circle cx="1500" cy="150" r="22" opacity=".16"/>
+          <circle cx="1100" cy="830" r="28" opacity=".14"/><circle cx="60" cy="800" r="20" opacity=".16"/>
+        </g>
+
+        <!-- fireflies (float via CSS) -->
+        <g fill="#fef9c3" filter="url(#glow)">
+          <circle class="fly" style="--dur:7s;--del:0s"  cx="360" cy="520" r="2.5"/>
+          <circle class="fly" style="--dur:9s;--del:-3s" cx="560" cy="760" r="2"/>
+          <circle class="fly" style="--dur:6s;--del:-1s" cx="880" cy="300" r="2.5"/>
+          <circle class="fly" style="--dur:8s;--del:-5s" cx="1050" cy="520" r="2"/>
+          <circle class="fly" style="--dur:10s;--del:-2s" cx="1480" cy="600" r="2.5"/>
+          <circle class="fly" style="--dur:7s;--del:-4s" cx="140" cy="640" r="2"/>
+          <circle class="fly" style="--dur:9s;--del:-6s" cx="700" cy="190" r="2"/>
+        </g>
+
+        <!-- darkened edges keep the panels readable -->
+        <rect width="1600" height="900" fill="url(#vig)"/>
+      </svg>
+    </div>
+
+
+    <!-- ============ HEADER ============ -->
+    <header class="relative z-10 w-full max-w-7xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-2 border-b border-[#6d58b0]/40">
+        <div>
+            <div class="flex items-center gap-2">
+                <h1 class="text-2xl font-extrabold tracking-tight text-emerald-100">Python-Based Garden Simulator</h1>
+                <!-- script.js fills this in with the APP_VERSION constant -->
+                <span id="version-badge" class="text-[10px] font-bold uppercase tracking-widest text-emerald-400/90 bg-emerald-950/50 border border-emerald-800/60 px-2 py-0.5 rounded-full"></span>
+            </div>
+            <p class="text-xs text-emerald-300/80 font-medium">SDG 2, 13, 15</p>
+        </div>
+        <div class="flex items-center gap-3">
+            <!-- Day counter: updated by Python through updateHeaderStats() -->
+            <div class="glass-panel px-4 py-2 rounded-xl flex flex-col items-end">
+                <span class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">DAY</span>
+                <span class="text-lg font-extrabold text-white" id="day-counter">1</span>
+            </div>
+            <!-- Score = % of the grid that has crops planted -->
+            <div class="glass-panel px-4 py-2 rounded-xl flex flex-col items-end">
+                <span class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">SCORE</span>
+                <span class="text-lg font-extrabold text-emerald-300" id="stewardship-counter">0%</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- Three-column layout: resources (3) | main view (6) | queue + history (3) -->
+    <main class="w-full max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-12 gap-4 flex-grow items-stretch relative z-10">
+
+        <!-- ============ LEFT: RESOURCES ============ -->
+        <section id="resources-section" class="lg:col-span-3 glass-panel rounded-2xl p-4 flex flex-col gap-4">
+            <div>
+                <h2 class="text-base font-bold text-emerald-200 border-b border-[#6d58b0]/30 pb-2 mb-4 flex items-center gap-2">
+                    <i data-lucide="database" class="w-4 h-4 text-emerald-400"></i> Resource Storage
+                </h2>
+                <div class="space-y-4">
+                    <!-- Each resource has a text label (xxx-text) and a progress bar (xxx-bar).
+                         updateResources() in script.js rewrites both whenever Python changes a value. -->
+
+                    <!-- Water (max 200 L) -->
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span class="flex items-center gap-1.5 text-blue-300">Water Reserves</span>
+                            <span id="water-text">0 / 200 L</span>
+                        </div>
+                        <div class="w-full bg-[#1a1236] h-2.5 rounded-full overflow-hidden mt-1">
+                            <div id="water-bar" class="bg-gradient-to-r from-blue-500 to-cyan-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Seeds (max 100) -->
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span class="flex items-center gap-1.5 text-emerald-300">Seed Inventory</span>
+                            <span id="seeds-text">0 / 100</span>
+                        </div>
+                        <div class="w-full bg-[#1a1236] h-2.5 rounded-full overflow-hidden mt-1">
+                            <div id="seeds-bar" class="bg-gradient-to-r from-emerald-500 to-lime-400 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Energy (max 120 Wh) -->
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span class="flex items-center gap-1.5 text-amber-300">Solar Energy</span>
+                            <span id="energy-text">0 / 120 Wh</span>
+                        </div>
+                        <div class="w-full bg-[#1a1236] h-2.5 rounded-full overflow-hidden mt-1">
+                            <div id="energy-bar" class="bg-gradient-to-r from-amber-500 to-yellow-300 h-full rounded-full transition-all duration-300" style="width: 0%"></div>
+                        </div>
+                    </div>
+
+                    <!-- Coins (no maximum, so no progress bar) -->
+                    <div>
+                        <div class="flex justify-between text-xs font-semibold">
+                            <span class="flex items-center gap-1.5 text-yellow-200">Coins / Funds</span>
+                            <span id="coins-text" class="text-yellow-200">0 Coins</span>
+                        </div>
+                    </div>
+
+                    <!-- FIX: the "Community Hope" block was removed from here.
+                         script.js no longer updates it, so it would
+                         have been stuck at "0 / 100" forever. -->
+                </div>
+            </div>
+
+            <!-- Garden control buttons (pinned to the bottom with mt-auto).
+                 Each calls pyCall('method_name'), which runs game.method_name() in Python. -->
+            <div class="border-t border-[#6d58b0]/30 pt-4 mt-auto">
+                <h3 class="text-xs font-bold text-emerald-300 uppercase tracking-wider mb-2">Garden Controls</h3>
+                <div class="grid grid-cols-1 gap-2">
+                    <!-- Pops the next climate event, then grows watered crops -->
+                    <button onclick="pyCall('advance_day')" class="w-full bg-emerald-800/80 hover:bg-emerald-700 text-emerald-100 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-emerald-600/40">
+                        <i data-lucide="sun" class="w-3.5 h-3.5 text-amber-400"></i> Advance Day
+                    </button>
+                    <!-- Waters every thirsty crop it can afford -->
+                    <button onclick="pyCall('water_all')" class="w-full bg-blue-900/60 hover:bg-blue-800 text-blue-100 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-blue-700/40">
+                        <i data-lucide="droplets" class="w-3.5 h-3.5 text-blue-400"></i> Water All Crops (10L each)
+                    </button>
+                    <!-- Appends a new species to the DynamicArray seed bank -->
+                    <button onclick="pyCall('add_rare_seed')" class="w-full bg-amber-900/50 hover:bg-amber-800 text-amber-100 py-2 rounded-xl text-xs font-semibold flex items-center justify-center gap-1.5 border border-amber-700/40">
+                        <i data-lucide="sparkles" class="w-3.5 h-3.5 text-amber-300"></i> Expand Seed Bank (Array)
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ CENTER: TABBED MAIN AREA ============ -->
+        <section class="lg:col-span-6 flex flex-col gap-4">
+
+            <!-- Tab buttons. switchTab() in script.js shows one view and hides the others. -->
+            <div class="flex bg-[#1a1236] p-1.5 rounded-xl border border-emerald-800/40 w-fit">
+                <button onclick="switchTab('game')" id="tab-game" class="px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap bg-[#3b2a6b] text-emerald-100">Interactive Sanctuary</button>
+                <button onclick="switchTab('code')" id="tab-code" class="px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap text-emerald-400/80 hover:text-emerald-100">Student Code Editor</button>
+                <button onclick="switchTab('tree')" id="tab-tree" class="px-4 py-1.5 rounded-lg text-xs font-bold whitespace-nowrap text-emerald-400/80 hover:text-emerald-100 flex items-center gap-1.5">
+                    <i data-lucide="git-fork" class="w-3.5 h-3.5 text-emerald-400"></i> Ecosystem Tree View
+                </button>
+            </div>
+
+            <!-- VIEW 1: GAME GRID (visible by default) -->
+            <div id="view-game" class="glass-panel rounded-2xl p-6 min-h-[380px] flex flex-col flex-grow">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h2 class="text-lg font-bold text-white">Sanctuary Garden Grid</h2>
+                        <p class="text-xs text-emerald-300">Click tile: <span class="text-emerald-400 font-semibold">Empty</span>=Plant | <span class="text-blue-300 font-semibold">Growing</span>=Water | <span class="text-amber-300 font-semibold">Mature</span>=Harvest</p>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-xs text-emerald-300">Selected Seed:</span>
+                        <!-- Options are filled from Python's seed bank by addPlantsToDropdown() -->
+                        <select id="crop-selector" class="bg-[#1a1236] border border-emerald-700 text-emerald-100 text-xs rounded-xl px-3 py-2 outline-none focus:border-emerald-500">
+                        </select>
+                    </div>
+                </div>
+                <!-- 25 tiles are injected here by renderFullGrid() -->
+                <div id="garden-grid" class="grid grid-cols-5 gap-3 my-auto"></div>
+
+                <!-- Quick how-to-play guide -->
+                <div class="mt-4 rounded-xl border border-emerald-700/40 bg-black/25 px-4 py-3 text-xs text-emerald-100/90">
+                    <span class="font-bold text-emerald-300">How to play:</span>
+                    <span class="block sm:inline">&#9312; Pick a seed &rarr; click an empty tile to <b>plant</b>.</span>
+                    <span class="block sm:inline">&#9313; Click it again (or <b>Water All</b>) to <b>water</b>.</span>
+                    <span class="block sm:inline">&#9314; Press <b>Advance Day</b> so watered crops grow.</span>
+                    <span class="block sm:inline">&#9315; Click a fully grown crop to <b>harvest</b> coins!</span>
+                </div>
+            </div>
+
+            <!-- VIEW 2: TREE HIERARCHY (hidden until its tab is clicked) -->
+            <div id="view-tree" class="glass-panel rounded-2xl p-6 flex flex-col flex-grow hidden">
+                <div class="flex items-center justify-between mb-4 border-b border-emerald-800/50 pb-3 flex-wrap gap-3">
+                    <div>
+                        <h2 class="text-lg font-bold text-white flex items-center gap-2">
+                            <i data-lucide="network" class="w-5 h-5 text-emerald-400"></i> Topic 4: Hierarchical Ecosystem Tree
+                        </h2>
+                        <p class="text-xs text-emerald-300/80">Visual representation of hierarchical sector nodes and live traversal outputs.</p>
+                    </div>
+                    <!-- Each button runs a different traversal algorithm written in Python -->
+                    <div class="flex gap-1.5">
+                        <button onclick="runTreeTraversal('pre_order')" class="bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 text-xs font-semibold whitespace-nowrap px-2.5 py-1.5 rounded-lg border border-emerald-700/50">Pre-Order</button>
+                        <button onclick="runTreeTraversal('in_order')" class="bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 text-xs font-semibold whitespace-nowrap px-2.5 py-1.5 rounded-lg border border-emerald-700/50">In-Order</button>
+                        <button onclick="runTreeTraversal('post_order')" class="bg-emerald-900/60 hover:bg-emerald-800 text-emerald-200 text-xs font-semibold whitespace-nowrap px-2.5 py-1.5 rounded-lg border border-emerald-700/50">Post-Order</button>
+                        <button onclick="runTreeTraversal('bfs')" class="bg-amber-900/60 hover:bg-amber-800 text-amber-200 text-xs font-semibold whitespace-nowrap px-2.5 py-1.5 rounded-lg border border-amber-700/50">BFS (Level)</button>
+                    </div>
+                </div>
+
+                <!-- The drawn tree appears here (built by renderTreeHierarchy()) -->
+                <div id="tree-container" class="flex-1 bg-[#0f0a22] border border-emerald-900/60 rounded-xl p-4 overflow-auto flex flex-col items-center justify-center gap-4 min-h-[220px]">
+                    <span class="text-xs text-emerald-400/60 italic">Load Pyodide to render visual ecosystem hierarchy...</span>
+                </div>
+
+                <!-- Shows the result of the last traversal -->
+                <div class="mt-4 bg-[#0a0618] border border-emerald-800/80 rounded-xl p-3">
+                    <span class="text-[10px] uppercase font-bold text-emerald-400 tracking-wider">Active Traversal Sequence:</span>
+                    <div id="traversal-output" class="text-xs code-font text-emerald-200 font-semibold mt-1">Select a traversal mode above.</div>
+                </div>
+            </div>
+
+            <!-- VIEW 3: STUDENT CODE EDITOR (hidden until its tab is clicked) -->
+            <div id="view-code" class="glass-panel rounded-2xl p-6 flex flex-col flex-grow hidden">
+                <h2 class="font-bold mb-3 flex items-center gap-2 text-emerald-200">
+                    <i data-lucide="code" class="w-5 h-5 text-emerald-400"></i> Student Code Editor (Lab)
+                </h2>
+                <!-- Choosing a topic calls loadTopic(), which loads its Python source below -->
+                <select id="topic-selector" onchange="loadTopic()" class="w-full bg-[#1a1236] border border-emerald-700 rounded-xl p-3 mb-4 text-sm text-emerald-100"></select>
+                <!-- Topic status chips: glow once a topic has been run ("activated") -->
+                <div id="topic-chips" class="flex flex-wrap gap-2 mb-4"></div>
+                <!-- readonly = students can read the code but not edit it -->
+                <textarea id="code-editor" readonly class="flex-1 bg-[#0a0618] border border-emerald-800 rounded-xl p-4 code-font text-sm font-medium leading-relaxed text-emerald-200 min-h-[250px]" spellcheck="false"></textarea>
+                <button id="run-btn" onclick="runPythonCode()" class="mt-4 bg-emerald-600 hover:bg-emerald-500 py-3 rounded-xl font-bold text-white flex items-center justify-center gap-2 transition-colors">
+                    <i data-lucide="play" class="w-4 h-4"></i> <span id="run-btn-label">Run Selected Python Topic</span>
+                </button>
+                <!-- print() output from Python is shown here -->
+                <div id="output-console" class="mt-4 bg-black/70 border border-emerald-900 rounded-xl p-4 text-xs max-h-48 overflow-auto font-mono whitespace-pre-wrap"></div>
+            </div>
+        </section>
+
+        <!-- ============ RIGHT: QUEUE + HISTORY ============ -->
+        <section class="lg:col-span-3 flex flex-col gap-4">
+            <!-- Upcoming weather events, shown in FIFO order (Topic 2) -->
+            <div id="climate-queue-panel" class="glass-panel rounded-2xl p-4">
+                <h3 class="font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                    <i data-lucide="cloud-lightning" class="w-4 h-4"></i> Climate Queue (FIFO)
+                </h3>
+                <div id="climate-queue" class="space-y-3 text-sm"></div>
+            </div>
+            <!-- Log of recent actions, newest on top (Topic 1) -->
+            <div id="stack-panel" class="glass-panel rounded-2xl p-4 flex-1 flex flex-col">
+                <h3 class="font-bold text-emerald-400 mb-3 flex items-center gap-2">
+                    <i data-lucide="history" class="w-4 h-4"></i> Action History (Stack)
+                </h3>
+                <div id="action-stack" class="flex-1 space-y-2 text-sm overflow-auto max-h-[220px]"></div>
+                <!-- Reverses the most recent plant/water action (LIFO pop) -->
+                <button onclick="triggerUndo()" class="mt-4 w-full bg-[#2f2260] hover:bg-[#3d2d7a] text-emerald-200 py-2.5 rounded-xl text-sm font-medium flex items-center justify-center gap-2 border border-emerald-800 transition-colors">
+                    <i data-lucide="undo-2" class="w-4 h-4"></i> Undo (Stack Pop)
+                </button>
+            </div>
+        </section>
+    </main>
+
+    <!-- Loaded last so every element above already exists when the script runs -->
+    <script src="script.js?v=6"></script>
+</body>
+</html>

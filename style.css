@@ -1,0 +1,127 @@
+/* =====================================================================
+   styles.css  -  Violet night-sky "game" theme
+   Tailwind handles layout/spacing in index.html; this file handles the
+   background scenery, glass panels, scrollbars and status indicators.
+   ===================================================================== */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+/* ---------- Base page ---------- */
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    /* Deep violet night gradient. Fixed so it doesn't scroll with the page. */
+    background:
+        radial-gradient(ellipse at 20% 0%,  rgba(124, 58, 237, 0.35), transparent 55%),
+        radial-gradient(ellipse at 90% 15%, rgba(192, 38, 211, 0.22), transparent 50%),
+        radial-gradient(ellipse at 50% 110%, rgba(79, 70, 229, 0.35), transparent 60%),
+        linear-gradient(180deg, #1a1040 0%, #120c2b 55%, #0b0718 100%) !important;
+    background-attachment: fixed !important;
+    color: #f3f0ff;
+}
+
+.code-font { font-family: 'JetBrains Mono', monospace; }
+
+/* ---------- Background scene ---------- */
+/* Fixed behind everything; pointer-events:none so it never blocks clicks.
+   TIP: to use your own picture instead, save it as background.png next to
+   index.html and add:  .scene { display: none; }  */
+.sky {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    background: url('background.png') center / cover no-repeat, #120c2b;
+}
+.scene { width: 100%; height: 100%; display: block; }
+
+/* Fireflies drift up and down, fading as they go */
+.fly {
+    animation: floaty var(--dur, 8s) ease-in-out infinite;
+    animation-delay: var(--del, 0s);
+}
+@keyframes floaty {
+    0%, 100% { transform: translate(0, 0);      opacity: 0.2; }
+    50%      { transform: translate(14px, -26px); opacity: 1; }
+}
+
+/* ---------- Glass panels (dark navy with a cyan/violet glow) ---------- */
+.glass-panel {
+    background: rgba(18, 12, 48, 0.62);
+    backdrop-filter: blur(14px);
+    border: 1px solid rgba(125, 211, 252, 0.28);
+    box-shadow: 0 8px 32px rgba(5, 3, 15, 0.6),
+                inset 0 1px 0 rgba(255, 255, 255, 0.06),
+                0 0 26px rgba(99, 102, 241, 0.28);
+}
+
+/* The garden tiles sit on their own darker inset panel */
+#garden-grid {
+    background: rgba(8, 5, 22, 0.55);
+    padding: 14px;
+    border-radius: 16px;
+    border: 1px solid rgba(125, 211, 252, 0.18);
+}
+
+/* ---------- Tree nodes ---------- */
+.tree-node { transition: all 0.2s ease-in-out; }
+.tree-node:hover {
+    transform: translateY(-2px);
+    border-color: #c4b5fd;
+    box-shadow: 0 0 14px rgba(167, 139, 250, 0.5);
+}
+
+/* ---------- Custom scrollbars (replaces the default white one) ---------- */
+* { scrollbar-width: thin; scrollbar-color: #6d58b0 transparent; }   /* Firefox */
+::-webkit-scrollbar { width: 8px; height: 8px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: #6d58b0; border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #8b5cf6; }
+
+/* ---------- Status pill in the header (Python engine state) ---------- */
+.status-pill {
+    display: flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 12px;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.04em;
+    border: 1px solid rgba(167, 139, 250, 0.3);
+    background: rgba(46, 30, 96, 0.55);
+}
+.status-pill .dot, .topic-chip .dot {
+    width: 8px; height: 8px; border-radius: 50%; background: #6b7280;
+}
+.status-pill.loading .dot { background: #fbbf24; animation: pulse 1s infinite; }
+.status-pill.ready   .dot { background: #4ade80; box-shadow: 0 0 8px #4ade80; }
+.status-pill.ready        { color: #bbf7d0; }
+.status-pill.error   .dot { background: #f87171; }
+.status-pill.error        { color: #fecaca; }
+
+/* ---------- Topic chips (glow when a topic is activated) ---------- */
+.topic-chip {
+    display: inline-flex; align-items: center; gap: 6px;
+    padding: 4px 10px; border-radius: 999px;
+    font-size: 10px; font-weight: 700;
+    color: #a78bfa; background: rgba(26, 18, 54, 0.8);
+    border: 1px solid rgba(109, 88, 176, 0.4);
+    transition: all 0.3s ease;
+}
+.topic-chip.active {
+    color: #bbf7d0;
+    background: rgba(22, 101, 52, 0.35);
+    border-color: rgba(74, 222, 128, 0.7);
+    box-shadow: 0 0 12px rgba(74, 222, 128, 0.35);
+}
+.topic-chip.active .dot { background: #4ade80; box-shadow: 0 0 8px #4ade80; animation: pulse 1.6s infinite; }
+
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+/* ---------- Run button flash when a topic gets activated ---------- */
+#run-btn { transition: all 0.25s ease; }
+#run-btn.activated-flash {
+    background: #16a34a !important;
+    box-shadow: 0 0 22px rgba(74, 222, 128, 0.6);
+}
+
+/* Respect users who prefer reduced motion */
+@media (prefers-reduced-motion: reduce) {
+    .fly { animation: none; }
+}
