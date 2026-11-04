@@ -1,0 +1,145 @@
+/* garden-v2.css: load AFTER styles.css */
+
+/* ---------- UI fixes ---------- */
+body { justify-content: flex-start !important; }
+main > section { min-width: 0; }
+#tab-game, #tab-code, #tab-tree, #tab-bst { flex-shrink: 0; }
+.tabbar-fix { flex-wrap: wrap; max-width: 100%; gap: 4px; }
+#code-editor { resize: vertical; min-height: 260px; }
+#output-console { max-height: 14rem; }
+#action-stack { min-height: 80px; }
+.sky { background: #120c2b !important; }            /* no missing background.png request */
+#view-game { position: relative; overflow: hidden; }
+
+/* ---------- Isometric board ---------- */
+#garden-grid {
+    width: min(340px, 78%);
+    margin: 90px auto 100px !important;
+    padding: 10px !important;
+    gap: 6px !important;
+    background: #8B4513 !important;
+    border: 4px solid #5a2d0c !important;
+    border-radius: 10px !important;
+    transform-style: preserve-3d;
+    transform: rotateX(60deg) rotateZ(45deg);
+    box-shadow: 30px 30px 40px rgba(0,0,0,.55);
+}
+.iso-tile { position: relative; aspect-ratio: 1; cursor: pointer; transform-style: preserve-3d; --d: 14px; user-select: none; }
+.iso-tile .top {
+    position: absolute; inset: 0; border: 3px solid #1b5e20; border-radius: 4px;
+    background: #32CD32; transition: filter .15s, box-shadow .15s;
+}
+.iso-tile:nth-child(even) .top { background: #7FFF00; }
+.iso-tile.has-crop .top { background: #8B4513; border-color: #4a2307; }
+.iso-tile.watered .top { background: #6b3410; box-shadow: inset 0 0 0 4px #3aa0ff; }
+.iso-tile.mature .top { box-shadow: inset 0 0 0 4px #ffd700; }
+.iso-tile .sf, .iso-tile .sr { position: absolute; background: #5e2f0b; border: 2px solid #3b1a06; }
+.iso-tile .sf { left: 0; right: 0; top: 100%; height: var(--d); transform-origin: top; transform: rotateX(-90deg); }
+.iso-tile .sr { top: 0; bottom: 0; left: 100%; width: var(--d); transform-origin: left; transform: rotateY(90deg); background: #7a3d10; }
+.iso-tile .idx { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font: 700 11px 'JetBrains Mono', monospace; color: #98FB98; text-shadow: 0 1px 0 #145214; transform: rotateZ(-45deg); }
+
+/* neon hover */
+.iso-tile:hover { transform: translateZ(8px); }
+.iso-tile:hover .top { filter: brightness(1.15); box-shadow: 0 0 10px 3px #39ff14, 0 0 28px 8px rgba(57,255,20,.7); border-color: #39ff14; }
+.iso-tile { transition: transform .15s; }
+
+/* plants stand upright against the tilted board */
+.plant { position: absolute; inset: -30% 0 20% 0; display: flex; align-items: flex-end; justify-content: center;
+    transform: rotateZ(-45deg) rotateX(-60deg); transform-origin: 50% 100%; pointer-events: none; }
+.plant svg { width: 78%; height: auto; overflow: visible; filter: drop-shadow(0 3px 0 rgba(0,0,0,.35)); }
+.plant.grow { animation: growpop .7s cubic-bezier(.3,1.6,.5,1); }
+.plant.squish { animation: squish .35s ease-out; }
+@keyframes growpop { 0% { transform: rotateZ(-45deg) rotateX(-60deg) scale(.2); } 100% { transform: rotateZ(-45deg) rotateX(-60deg) scale(1); } }
+@keyframes squish {
+    0% { transform: rotateZ(-45deg) rotateX(-60deg) scale(1,1); }
+    30% { transform: rotateZ(-45deg) rotateX(-60deg) scale(1.3,.65); }
+    60% { transform: rotateZ(-45deg) rotateX(-60deg) scale(.88,1.2); }
+    100% { transform: rotateZ(-45deg) rotateX(-60deg) scale(1,1); }
+}
+.pest { position: absolute; inset: -20% 0 20% 0; display: flex; align-items: center; justify-content: center; font-size: 28px;
+    transform: rotateZ(-45deg) rotateX(-60deg); animation: wiggle .5s infinite alternate; pointer-events: none; }
+.pest.weed { filter: hue-rotate(70deg) saturate(2.5) drop-shadow(0 0 4px #ff3b30); }
+.pest.bug { filter: drop-shadow(0 0 5px #ff3b30); }
+@keyframes wiggle { from { margin-left: -4px; } to { margin-left: 4px; } }
+
+/* ---------- Floating text (fixed, so no 3D interference) ---------- */
+.float-text { position: fixed; z-index: 100; pointer-events: none; font: 800 16px 'Plus Jakarta Sans', sans-serif;
+    -webkit-text-stroke: 1px rgba(0,0,0,.55); text-shadow: 0 2px 0 rgba(0,0,0,.5); transform: translate(-50%,-50%);
+    animation: floatup 1.2s ease-out forwards; }
+@keyframes floatup {
+    0% { opacity: 0; transform: translate(-50%,-50%) scale(.3); }
+    15% { opacity: 1; transform: translate(-50%,-70%) scale(1.5); }
+    30% { transform: translate(-50%,-90%) scale(.95); }
+    45% { transform: translate(-50%,-105%) scale(1.15); }
+    100% { opacity: 0; transform: translate(-50%,-190%) scale(1); }
+}
+
+/* ---------- Weather overlay ---------- */
+#weather-fx { position: absolute; inset: 0; pointer-events: none; overflow: hidden; border-radius: 1rem; z-index: 5; }
+.sun-rays { position: absolute; top: -40%; left: 50%; width: 140%; aspect-ratio: 1; margin-left: -70%;
+    background: repeating-conic-gradient(from 0deg, rgba(255,235,59,.5) 0 8deg, transparent 8deg 22deg);
+    -webkit-mask: radial-gradient(circle, #000 5%, transparent 70%); mask: radial-gradient(circle, #000 5%, transparent 70%);
+    animation: spin 12s linear infinite, fadeio 6s ease-in-out forwards; }
+.sun-core { position: absolute; top: 8px; left: 50%; width: 70px; height: 70px; margin-left: -35px; border-radius: 50%;
+    background: radial-gradient(circle, #fff9c4, #ffeb3b 60%, rgba(255,235,59,0) 72%); animation: fadeio 6s ease-in-out forwards; }
+.dust { position: absolute; border-radius: 50%; background: #ff9a2e; opacity: 0; animation: dustmove linear forwards; }
+.drop { position: absolute; top: -20px; width: 3px; height: 16px; border-radius: 3px; background: #4fc3ff; animation: dropfall linear forwards; }
+@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes fadeio { 0%,100% { opacity: 0; } 20%,80% { opacity: 1; } }
+@keyframes dustmove { 0% { opacity: 0; transform: translate(0,0); } 20% { opacity: .8; } 100% { opacity: 0; transform: translate(var(--dx), var(--dy)); } }
+@keyframes dropfall { to { transform: translateY(520px); opacity: .2; } }
+
+/* ---------- Shop ---------- */
+.shop-btn { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: 8px 10px; border-radius: 12px;
+    font-size: 12px; font-weight: 700; border: 1px solid rgba(250,204,21,.4); background: rgba(113,63,18,.45); color: #fef08a; }
+.shop-btn:hover { background: rgba(133,77,14,.7); }
+
+/* =====================================================================
+   FUN PACK
+   ===================================================================== */
+h1 { background: linear-gradient(90deg, #98FB98, #7FFF00, #ffd600, #ff7ae0, #98FB98); background-size: 300% 100%;
+     -webkit-background-clip: text; background-clip: text; color: transparent !important; animation: rainbow 6s linear infinite;
+     filter: drop-shadow(0 0 10px rgba(127,255,0,.45)); }
+@keyframes rainbow { to { background-position: 300% 0; } }
+
+.glass-panel { transition: transform .2s, box-shadow .2s; }
+.glass-panel:hover { box-shadow: 0 8px 32px rgba(5,3,15,.6), 0 0 34px rgba(127,255,0,.28), inset 0 1px 0 rgba(255,255,255,.08); }
+
+button { transition: transform .12s, filter .12s, box-shadow .2s; }
+button:hover { transform: translateY(-2px) scale(1.03); filter: brightness(1.18); }
+button:active { transform: scale(.93) translateY(1px); }
+#resources-section button:hover { box-shadow: 0 0 14px rgba(127,255,0,.45); }
+
+#water-bar, #seeds-bar, #energy-bar { background-size: 200% 100% !important; animation: shimmer 2.2s linear infinite; box-shadow: 0 0 10px currentColor; }
+@keyframes shimmer { from { background-position: 0 0; } to { background-position: -200% 0; } }
+
+#day-counter, #stewardship-counter, #coins-text { display: inline-block; }
+.bump { animation: bump .5s cubic-bezier(.3,1.8,.5,1); }
+@keyframes bump { 0% { transform: scale(1); } 40% { transform: scale(1.6); color: #ffd600; text-shadow: 0 0 14px #ffd600; } 100% { transform: scale(1); } }
+#stewardship-counter { text-shadow: 0 0 12px rgba(127,255,0,.7); }
+
+/* plants feel alive */
+.plant svg { animation: sway 3.2s ease-in-out infinite; transform-origin: 50% 100%; }
+.iso-tile.mature .plant svg { animation: bob .8s ease-in-out infinite; filter: drop-shadow(0 0 8px #ffd600); }
+@keyframes sway { 0%,100% { transform: rotate(-3deg); } 50% { transform: rotate(3deg); } }
+@keyframes bob { 0%,100% { transform: translateY(0) scale(1); } 50% { transform: translateY(-5px) scale(1.06); } }
+.iso-tile.mature::after { content: '✨'; position: absolute; left: 55%; top: -10%; font-size: 18px;
+    transform: rotateZ(-45deg) rotateX(-60deg); animation: twinkle 1.1s ease-in-out infinite; pointer-events: none; }
+@keyframes twinkle { 0%,100% { opacity: .2; } 50% { opacity: 1; } }
+#garden-grid { box-shadow: 30px 30px 40px rgba(0,0,0,.55), 0 0 70px rgba(50,205,50,.35) !important; }
+
+/* confetti + day banner */
+.confetti { position: fixed; z-index: 100; width: 8px; height: 12px; border-radius: 2px; pointer-events: none; animation: burst .9s ease-out forwards; }
+@keyframes burst { to { transform: translate(var(--x), calc(var(--y) + 80px)) rotate(var(--r)); opacity: 0; } }
+.day-banner { position: fixed; z-index: 120; left: 50%; top: 40%; transform: translate(-50%,-50%); pointer-events: none;
+    font: 800 56px 'Plus Jakarta Sans', sans-serif; color: #fff; white-space: nowrap;
+    text-shadow: 0 0 20px #7FFF00, 0 4px 0 #14532d; -webkit-text-stroke: 2px #14532d; animation: banner 1.6s ease-out forwards; }
+@keyframes banner { 0% { opacity: 0; transform: translate(-50%,-50%) scale(.3) rotate(-8deg); } 25% { opacity: 1; transform: translate(-50%,-50%) scale(1.15) rotate(2deg); }
+    40% { transform: translate(-50%,-50%) scale(1); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%,-90%) scale(1); } }
+
+/* drifting leaves */
+.leaf-layer { position: fixed; inset: 0; z-index: 1; pointer-events: none; overflow: hidden; }
+.leaf { position: absolute; top: -30px; opacity: .55; animation: leaffall linear infinite; }
+@keyframes leaffall { 0% { transform: translate(0,-30px) rotate(0); } 50% { transform: translate(40px,50vh) rotate(180deg); } 100% { transform: translate(-30px,105vh) rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .leaf, .plant svg, .iso-tile.mature::after, h1 { animation: none !important; } }
