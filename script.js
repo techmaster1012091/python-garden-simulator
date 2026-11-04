@@ -1329,21 +1329,149 @@ function floatAt(idx, text, color, delay = 0) {
     }, delay);
 }
 
-// ---------------- Cartoon plants (3 growth stages) ----------------
-const CROP_COLOR = { Maize: '#FFD700', Tomato: '#FF3B30', Wheat: '#F5C542', Carrot: '#FF8C00', Pumpkin: '#FF7518', Sunflower: '#FFE600' };
+// ---------------- Realistic crop drawings (6 crops x 3 growth stages) ----------------
+const OL = 'stroke="#1e3a14" stroke-width="1.6" stroke-linejoin="round" stroke-linecap="round"';
+const cLeaf = (d, f) => `<path d="${d}" fill="${f}" ${OL}/>`;
+const cStem = (d, w = 3, c = '#5aa532') =>
+    `<path d="${d}" fill="none" stroke="#1e3a14" stroke-width="${w + 1.6}" stroke-linecap="round"/>` +
+    `<path d="${d}" fill="none" stroke="${c}" stroke-width="${w}" stroke-linecap="round"/>`;
+const cEll = (x, y, rx, ry, f, rot = 0, extra = OL) =>
+    `<ellipse cx="${x}" cy="${y}" rx="${rx}" ry="${ry}" fill="${f}" ${extra} transform="rotate(${rot} ${x} ${y})"/>`;
+const THIN = 'stroke="#1e3a14" stroke-width="1"';
+
+// feathery carrot top: one thin stem with small leaflets
+function cFrond(x0, y0, x1, y1, col) {
+    let s = cStem(`M${x0} ${y0} L${x1} ${y1}`, 1.3, '#3f8f2a');
+    const a = Math.atan2(y1 - y0, x1 - x0) * 180 / Math.PI;
+    for (const t of [0.4, 0.62, 0.85, 1]) {
+        const px = x0 + (x1 - x0) * t, py = y0 + (y1 - y0) * t;
+        s += cEll(px, py, 4.2, 1.7, col, a + 38, THIN) + cEll(px, py, 4.2, 1.7, col, a - 38, THIN);
+    }
+    return s;
+}
+
+// Stage 1 (all crops): a tiny sprout. Grasses get blades, carrot gets fine fronds.
+function seedlingSvg(sp) {
+    let g;
+    if (sp === 'Maize' || sp === 'Wheat') {
+        g = cLeaf('M30 66 C27 58 22 52 17 47 C25 50 29 56 30 66Z', '#6fcf3f') +
+            cLeaf('M30 66 C33 56 38 50 43 45 C36 51 32 58 30 66Z', '#5cb338') +
+            cLeaf('M30 66 C29 56 29 50 31 42 C33 50 33 58 30 66Z', '#4caf2a');
+    } else if (sp === 'Carrot') {
+        g = cFrond(30, 66, 22, 48, '#6fcf3f') + cFrond(30, 66, 38, 50, '#5cb338') + cFrond(30, 66, 30, 44, '#4caf2a');
+    } else {
+        g = cStem('M30 66 V52', 2.4) +
+            cLeaf('M30 54 C20 54 13 47 16 40 C25 40 30 46 30 54Z', '#6fcf3f') +
+            cLeaf('M30 54 C40 54 47 47 44 40 C35 40 30 46 30 54Z', '#4caf2a');
+    }
+    return `<svg viewBox="0 0 60 70">${g}</svg>`;
+}
+
+// ---- Maize: tall stalk, long arching leaves, golden cob in a husk, tassel on top ----
+function maizeSvg(stage) {
+    let g = cStem('M30 67 V16', 3.4, '#6bb23a');
+    g += cLeaf('M30 58 C18 57 9 49 5 40 C16 44 26 49 30 54Z', '#5cb338');
+    g += cLeaf('M30 48 C42 46 51 38 55 29 C44 33 35 38 30 43Z', '#4caf2a');
+    g += cLeaf('M30 38 C20 36 14 29 11 21 C20 25 27 30 30 34Z', '#6fcf3f');
+    if (stage === 2) return g + cLeaf('M30 28 C37 26 41 21 42 15 C36 18 32 21 30 24Z', '#5cb338');
+    g += `<path d="M30 17 L25 6 M30 17 L30 4 M30 17 L35 6" fill="none" stroke="#d4a93a" stroke-width="1.7" stroke-linecap="round"/>`;
+    g += `<g transform="rotate(16 38 38)">` + cEll(38, 37, 5.4, 11.5, '#ffd23f') +
+        `<path d="M35.4 28 V47 M38 26 V48 M40.6 28 V47 M33.5 34 H42.5 M33.3 39 H42.7" stroke="#d99a00" stroke-width=".8" fill="none"/>` +
+        cLeaf('M31.6 46 C31.4 42 35 40 38 39.5 C41 40 44.6 42 44.4 46 C42 53 34 53 31.6 46Z', '#8bc34a') + `</g>`;
+    return g;
+}
+
+// ---- Tomato: staked vine with jagged leaves, green fruit then ripe red tomatoes ----
+function tomatoFruit(x, y, r, red) {
+    const col = red ? '#e53935' : '#8bc34a';
+    return `<circle cx="${x}" cy="${y}" r="${r}" fill="${col}" ${OL}/>` +
+        (red ? `<ellipse cx="${x - r * .35}" cy="${y - r * .35}" rx="${r * .28}" ry="${r * .18}" fill="#fff" opacity=".6" transform="rotate(-35 ${x - r * .35} ${y - r * .35})"/>` : '') +
+        `<path d="M${x - r * .6} ${y - r * .75} L${x} ${y - r * .45} L${x + r * .6} ${y - r * .75} L${x + r * .25} ${y - r * 1.05} L${x} ${y - r * .85} L${x - r * .25} ${y - r * 1.05}Z" fill="#43a047" stroke="#1e3a14" stroke-width="1"/>`;
+}
+function tomatoSvg(stage) {
+    let g = `<path d="M47 67 V8" stroke="#8d6e3f" stroke-width="2.6" stroke-linecap="round"/>`;
+    g += cStem('M30 67 C29 54 31 40 30 20', 2.8, '#4f9a2c');
+    g += cLeaf('M30 60 L21 61 L17 56 L11 57 L13 51 L18 51 L21 46 L27 50Z', '#4caf2a');
+    g += cLeaf('M30 50 L39 50 L43 45 L49 46 L47 40 L42 40 L39 35 L33 39Z', '#5cb338');
+    g += cLeaf('M30 38 L22 37 L19 32 L13 32 L16 26 L21 27 L24 22 L28 28Z', '#6fcf3f');
+    g += cLeaf('M30 26 L37 24 L40 19 L45 19 L44 13 L38 14 L35 10 L31 16Z', '#4caf2a');
+    if (stage === 2) return g + tomatoFruit(23, 47, 4.5, false) + `<circle cx="37" cy="30" r="2.8" fill="#ffe135" ${OL}/>`;
+    return g + tomatoFruit(21, 46, 7.5, true) + tomatoFruit(39, 34, 8, true) + tomatoFruit(33, 57, 6.5, true);
+}
+
+// ---- Wheat: three slender stalks; green while growing, golden ears with awns when ripe ----
+function wheatSvg(stage) {
+    const ripe = stage === 3, stalkC = ripe ? '#d9b04a' : '#7cb342', grainC = ripe ? '#f2c94c' : '#9ccc65';
+    const G = 'stroke="#7a5d12" stroke-width=".9"';
+    let g = '';
+    [[19, 20], [30, 12], [41, 18]].forEach(([x, top], i) => {
+        const n = ripe ? 6 : 4, step = 3.6, d = i === 1 ? -1 : 1;
+        g += cStem(`M${x} 67 C${x + (i - 1) * 1.5} 50 ${x} 40 ${x} ${top + n * step}`, 1.8, stalkC);
+        g += cLeaf(`M${x} 60 C${x + 8 * d} 56 ${x + 12 * d} 50 ${x + 13 * d} 42 C${x + 8 * d} 48 ${x + 3 * d} 52 ${x} 56Z`, ripe ? '#c8b04a' : '#6fcf3f');
+        for (let k = 0; k < n; k++) {
+            const y = top + k * step;
+            g += cEll(x - 2.5, y, 1.7, 3, grainC, -28, G) + cEll(x + 2.5, y, 1.7, 3, grainC, 28, G);
+        }
+        g += cEll(x, top - 2, 1.6, 3, grainC, 0, G);
+        if (ripe) g += `<path d="M${x - 2} ${top} L${x - 5} ${top - 8} M${x} ${top - 3} L${x} ${top - 11} M${x + 2} ${top} L${x + 5} ${top - 8}" stroke="#b8902e" stroke-width=".8" fill="none"/>`;
+    });
+    return g;
+}
+
+// ---- Carrot: feathery green tops; ripe carrot shows its orange shoulder above the soil ----
+function carrotSvg(stage) {
+    let g = '';
+    const tips = stage === 2 ? [[19, 40], [30, 30], [41, 41]] : [[15, 38], [22, 24], [30, 17], [38, 24], [45, 38]];
+    const cols = ['#4caf2a', '#5cb338', '#6fcf3f', '#5cb338', '#4caf2a'];
+    if (stage === 3) g += `<path d="M20 63 C20 55 40 55 40 63 C40 67 35 71 30 71 C25 71 20 67 20 63Z" fill="#ff8a1f" ${OL}/><path d="M24 60 H36 M25 65 H35" stroke="#c75a00" stroke-width="1" fill="none"/>`;
+    tips.forEach(([x, y], i) => { g += cFrond(30, stage === 3 ? 58 : 64, x, y, cols[stage === 2 ? i * 2 : i]); });
+    return g;
+}
+
+// ---- Pumpkin: sprawling vine, big lobed leaves, ribbed orange pumpkin with a woody stem ----
+function pumpLeaf(x, y, s, f = '#4caf2a') {
+    return `<g transform="translate(${x} ${y}) scale(${s})">` +
+        cLeaf('M0 0 C-10 2 -20 -4 -18 -12 C-23 -18 -15 -25 -9 -21 C-8 -29 8 -29 9 -21 C15 -25 23 -18 18 -12 C20 -4 10 2 0 0Z', f) +
+        `<path d="M0 0 V-18 M0 -6 L-9 -14 M0 -6 L9 -14" stroke="#2e6b1f" stroke-width="1" fill="none"/></g>`;
+}
+function pumpkinSvg(stage) {
+    let g = cStem('M30 67 C28 60 20 58 14 52', 2, '#5aa532') + cStem('M30 67 C32 58 38 56 42 50', 2, '#5aa532');
+    if (stage === 2) {
+        g += pumpLeaf(16, 50, .8) + pumpLeaf(41, 50, .9, '#5cb338');
+        return g + `<ellipse cx="30" cy="59" rx="8" ry="6" fill="#9ccc65" ${OL}/><path d="M30 53 V49" stroke="#6d4c1f" stroke-width="2.2" stroke-linecap="round"/>`;
+    }
+    g += pumpLeaf(11, 46, .9) + pumpLeaf(50, 40, .8, '#5cb338');
+    g += `<ellipse cx="30" cy="52" rx="22" ry="15" fill="#f57c00" ${OL}/>` +
+        `<path d="M30 37.5 C22 42 22 62 30 66.5 C38 62 38 42 30 37.5Z" fill="#ff9a1f" stroke="#b25400" stroke-width="1.1"/>` +
+        `<path d="M21 39 C12 44 14 60 21 65 M39 39 C48 44 46 60 39 65" fill="none" stroke="#b25400" stroke-width="1.1"/>` +
+        `<path d="M30 38 C29 32 31 28 33 25" fill="none" stroke="#6d4c1f" stroke-width="3.6" stroke-linecap="round"/>` +
+        `<path d="M35 31 C43 28 46 36 40 36" fill="none" stroke="#5aa532" stroke-width="1.4"/>`;
+    return g;
+}
+
+// ---- Sunflower: tall thick stem, big leaves, green bud, then a big yellow flower with seed spiral ----
+function sunflowerSvg(stage) {
+    let g = cStem('M30 67 V24', 4.4, '#4f8f2a');
+    g += cLeaf('M30 58 C19 60 10 54 9 45 C19 45 27 49 30 58Z', '#4caf2a');
+    g += cLeaf('M30 47 C41 49 50 43 51 34 C41 34 33 38 30 47Z', '#5cb338');
+    if (stage === 2) {
+        return g + `<circle cx="30" cy="21" r="8" fill="#6fae35" ${OL}/><path d="M22 20 L18 14 L26 16Z M38 20 L42 14 L34 16Z M30 13 L27 6 L33 6Z" fill="#4f8f2a" ${OL}/><circle cx="30" cy="22" r="3.4" fill="#d4c43a"/>`;
+    }
+    for (const [off, col] of [[11.25, '#ffb300'], [0, '#ffd600']]) {
+        for (let i = 0; i < 16; i++) g += `<ellipse cx="30" cy="9" rx="3.4" ry="7.5" fill="${col}" stroke="#a66a00" stroke-width=".8" transform="rotate(${i * 22.5 + off} 30 21)"/>`;
+    }
+    g += `<circle cx="30" cy="21" r="8.6" fill="#5d3a1a" ${OL}/>`;
+    for (let k = 0; k < 22; k++) {
+        const r = 1.55 * Math.sqrt(k + 1.5), a = k * 2.399963;
+        g += `<circle cx="${(30 + r * Math.cos(a)).toFixed(1)}" cy="${(21 + r * Math.sin(a)).toFixed(1)}" r=".8" fill="#2d1a0b"/>`;
+    }
+    return g;
+}
+
 function plantSvg(stage, species) {
-    const c = CROP_COLOR[species] || '#FF3B30';
-    const S = 'stroke="#14532d" stroke-width="4" stroke-linejoin="round" stroke-linecap="round"';
-    const leaf = (d, f) => `<path d="${d}" fill="${f}" ${S}/>`;
-    if (stage === 1) return `<svg viewBox="0 0 60 70"><path d="M30 64 V48" fill="none" ${S}/>
-        ${leaf('M30 50 C20 50 14 42 17 36 C26 37 30 43 30 50Z', '#98FB98')}${leaf('M30 50 C40 50 46 42 43 36 C34 37 30 43 30 50Z', '#7FFF00')}</svg>`;
-    if (stage === 2) return `<svg viewBox="0 0 60 70"><path d="M30 64 V26" fill="none" ${S}/>
-        ${leaf('M30 56 C16 56 8 46 12 38 C24 38 30 46 30 56Z', '#32CD32')}${leaf('M30 56 C44 56 52 46 48 38 C36 38 30 46 30 56Z', '#7FFF00')}
-        ${leaf('M30 42 C20 42 14 34 18 27 C27 28 30 34 30 42Z', '#7FFF00')}${leaf('M30 42 C40 42 46 34 42 27 C33 28 30 34 30 42Z', '#32CD32')}
-        <circle cx="30" cy="22" r="7" fill="${c}" ${S}/></svg>`;
-    return `<svg viewBox="0 0 60 70"><path d="M30 66 V30" fill="none" ${S} stroke-width="6"/>
-        ${leaf('M30 62 C12 62 2 50 8 40 C22 40 30 50 30 62Z', '#32CD32')}${leaf('M30 62 C48 62 58 50 52 40 C38 40 30 50 30 62Z', '#7FFF00')}
-        <circle cx="30" cy="26" r="17" fill="${c}" ${S}/><ellipse cx="24" cy="19" rx="5" ry="3.5" fill="#fff" opacity=".7" transform="rotate(-30 24 19)"/></svg>`;
+    if (stage === 1) return seedlingSvg(species);
+    const draw = { Maize: maizeSvg, Tomato: tomatoSvg, Wheat: wheatSvg, Carrot: carrotSvg, Pumpkin: pumpkinSvg, Sunflower: sunflowerSvg }[species] || tomatoSvg;
+    return `<svg viewBox="0 0 60 70">${draw(stage)}</svg>`;
 }
 
 // ---------------- Pests ----------------
@@ -1380,7 +1508,7 @@ function pestsPreDay() {
         p.age++;
         if (p.type === 'bug') {
             if (!planted.has(i)) { pests.delete(i); continue; }
-            if (p.age >= 2) {
+            if (p.age >= 3) {
                 runPy(`game.remove_tile(${i})`);
                 pests.delete(i);
                 showToast(`🐛 Bugs destroyed the crop on tile ${i}!`);
@@ -1468,7 +1596,7 @@ function renderGridFromBST(sortedNodes) {
         div.className = 'iso-tile' + (t ? ' has-crop' : '') + (t && t.watered ? ' watered' : '') + (t && t.is_mature ? ' mature' : '');
         div.dataset.idx = idx;
 
-        let html = `<div class="top">${t ? '' : `<span class="idx">${idx}</span>`}</div><div class="sf"></div><div class="sr"></div>`;
+        let html = `<div class="top"><span class="idx${t ? ' tag' : ''}">${idx}</span></div><div class="sf"></div><div class="sr"></div>`;
         if (t) {
             const prev = stageMemory.get(idx);
             const grow = (prev === undefined || t.stage > prev) ? ' grow' : '';
@@ -1657,21 +1785,32 @@ window.updateHeaderStats = function (d, sc) {
     // ============ XP, MISSIONS, ACHIEVEMENTS ============
     const POOL = [
         { t: 'Harvest 3 crops', k: 'harvest', n: 3, r: 30 }, { t: 'Water 6 times', k: 'water', n: 6, r: 20 },
-        { t: 'Plant 4 seeds', k: 'plant', n: 4, r: 20 }, { t: 'Squash 2 bugs', k: 'bug', n: 2, r: 25 }, { t: 'Survive 3 days', k: 'days', n: 3, r: 25 }];
-    if (!S.act) S.act = [0, 1, 3].map(i => ({ i, from: S[POOL[i].k] || 0 }));
+        { t: 'Plant 4 seeds', k: 'plant', n: 4, r: 20 }, { t: 'Squash 2 bugs', k: 'bug', n: 2, r: 25 },
+        { t: 'Survive 3 days', k: 'days', n: 3, r: 25 }, { t: 'Harvest 8 crops', k: 'harvest', n: 8, r: 60 },
+        { t: 'Water 15 times', k: 'water', n: 15, r: 35 }, { t: 'Plant 10 seeds', k: 'plant', n: 10, r: 40 },
+        { t: 'Squash 5 bugs', k: 'bug', n: 5, r: 50 }, { t: 'Survive 6 days', k: 'days', n: 6, r: 45 },
+        { t: 'Buy an upgrade', k: 'buy', n: 1, r: 40 }, { t: 'Buy 3 upgrades', k: 'buy', n: 3, r: 90 }];
+    // always keep 4 missions active
+    if (!Array.isArray(S.act)) S.act = [];
+    for (let i = 0; S.act.length < 4 && i < POOL.length; i++) {
+        if (!S.act.some(o => o.i === i)) S.act.push({ i, from: S[POOL[i].k] || 0 });
+    }
     const ACH = [
         ['first', '🌾 First Harvest', () => S.harvest >= 1], ['farmer', '🧺 Farmer (10)', () => S.harvest >= 10],
-        ['bug', '🐞 Bug Buster (5)', () => S.bug >= 5], ['green', '🌱 Green Thumb (15)', () => S.plant >= 15],
-        ['surv', '📅 Survivor (10 days)', () => S.days >= 10], ['auto', '⚙️ Automated', () => owned.sprinkler > 0 || owned.solar > 0],
-        ['rich', '🪙 Tycoon (500c)', () => lastCoins >= 500]];
+        ['pro', '🚜 Pro Farmer (30)', () => S.harvest >= 30], ['bug', '🐞 Bug Buster (5)', () => S.bug >= 5],
+        ['bug2', '🕷️ Exterminator (20)', () => S.bug >= 20], ['green', '🌱 Green Thumb (15)', () => S.plant >= 15],
+        ['green2', '🌳 Forester (40)', () => S.plant >= 40], ['water', '💧 Water Master (50)', () => S.water >= 50],
+        ['surv', '📅 Survivor (10 days)', () => S.days >= 10], ['surv2', '🗓️ Veteran (30 days)', () => S.days >= 30],
+        ['auto', '⚙️ Automated', () => owned.sprinkler > 0 || owned.solar > 0], ['upg', '🔧 Upgrader (5 buys)', () => (S.buy || 0) >= 5],
+        ['lvl', '⭐ Level 5', () => S.level >= 5], ['rich', '🪙 Tycoon (500c)', () => lastCoins >= 500]];
 
     function giveCoins(n) { try { runPy(`game.coins += ${n}\ngame.sync_ui()`); syncFromBST(); lastCoins += n; } catch (e) { } }
     function evt(k, n = 1) {
         S[k] = (S[k] || 0) + n;
-        gainXP(({ harvest: 10, plant: 2, water: 1, bug: 3, days: 1 })[k] * n);
+        gainXP((({ harvest: 10, plant: 2, water: 1, bug: 3, days: 1, buy: 5 })[k] || 0) * n);
         S.act.forEach(a => {
             const m = POOL[a.i];
-            if (S[m.k] - a.from >= m.n) {
+            if ((S[m.k] || 0) - a.from >= m.n) {
                 giveCoins(m.r); showToast(`✅ Mission done: ${m.t} (+${m.r} coins)`); floatAt(null, `+${m.r} Coins`, '#ffd600'); SFX.buy();
                 do { a.i = (a.i + 1) % POOL.length; } while (S.act.some(o => o !== a && o.i === a.i));
                 a.from = S[POOL[a.i].k] || 0;
@@ -1702,18 +1841,29 @@ window.updateHeaderStats = function (d, sc) {
         }
         box.innerHTML = `<span class="text-[10px] text-emerald-400 uppercase tracking-widest font-bold">LEVEL ${S.level}</span><div class="bar"><i style="width:${S.xp / (30 * S.level) * 100}%"></i></div>`;
     }
+    // Missions + achievements live in the LEFT panel, between resources and controls.
     function renderPanel() {
         let p = $('v3-panel');
         if (!p) {
-            p = document.createElement('div'); p.id = 'v3-panel'; p.className = 'glass-panel rounded-2xl p-4';
-            const host = $('stack-panel') ? $('stack-panel').parentNode : document.body; host.appendChild(p);
+            p = document.createElement('div'); p.id = 'v3-panel';
+            p.style.cssText = 'border-top:1px solid rgba(109,88,176,.3);padding-top:12px';
+            const host = $('resources-section');
+            if (host) host.insertBefore(p, host.querySelector('.border-t')); else document.body.appendChild(p);
         }
-        p.innerHTML = `<h3 class="font-bold text-emerald-400 mb-3 text-sm">🎯 Missions</h3>` +
-            S.act.map(a => { const m = POOL[a.i], v = Math.min(m.n, S[m.k] - a.from);
+        p.innerHTML = `<h3 class="font-bold text-emerald-400 mb-2 text-sm">🎯 Missions</h3>` +
+            S.act.map(a => { const m = POOL[a.i], v = Math.max(0, Math.min(m.n, (S[m.k] || 0) - a.from));
                 return `<div class="mission"><div class="flex justify-between"><span>${m.t}</span><span>${v}/${m.n} · +${m.r}c</span></div><div class="mb"><i style="width:${v / m.n * 100}%"></i></div></div>`; }).join('') +
-            `<h3 class="font-bold text-emerald-400 mt-3 mb-2 text-sm">🏆 Achievements</h3>` +
-            ACH.map(([id, name]) => `<span class="ach ${S.ach[id] ? 'on' : ''}">${name}</span>`).join('');
+            `<h3 class="font-bold text-emerald-400 mt-3 mb-1 text-sm">🏆 Achievements (${Object.keys(S.ach).length}/${ACH.length})</h3><div class="ach-wrap">` +
+            ACH.map(([id, name]) => `<span class="ach ${S.ach[id] ? 'on' : ''}">${name}</span>`).join('') + `</div>`;
     }
+
+    // buying an upgrade counts towards missions
+    const _buy = window.buyUpgrade;
+    window.buyUpgrade = function (kind) {
+        const before = owned.sprinkler + owned.solar;
+        _buy(kind);
+        if (owned.sprinkler + owned.solar > before) evt('buy');
+    };
 
     // ---- pyCall wrapper #2: feeds missions / XP / achievements ----
     const _pc = window.pyCall;
@@ -1786,6 +1936,32 @@ window.addEventListener('DOMContentLoaded', () => {
             try { spawnPest(); syncFromBST(); } catch (e) { /* engine not ready yet */ }
         }
     }, 20000);
+
+    // ---- Automatic next day every 10 seconds ----
+    const AUTO_SECONDS = 10;
+    let autoDay = true, dayLeft = AUTO_SECONDS, lastSeenDay = document.getElementById('day-counter').textContent;
+    const ad = document.createElement('div');
+    ad.className = 'mb-2';
+    ad.innerHTML = `<div class="flex items-center justify-between text-xs font-semibold text-amber-200 mb-1">
+            <span id="auto-day-text">Next day in ${AUTO_SECONDS}s</span>
+            <button id="auto-day-toggle" class="px-2 py-0.5 rounded-lg border border-amber-500/50 bg-amber-900/50 text-[10px] font-bold">Auto: ON</button></div>
+        <div class="w-full h-1.5 rounded-full bg-[#1a1236] overflow-hidden"><i id="auto-day-bar" class="block h-full bg-amber-400" style="width:100%"></i></div>`;
+    controls.querySelector('.grid').before(ad);
+    const adText = document.getElementById('auto-day-text'), adBar = document.getElementById('auto-day-bar'), adBtn = document.getElementById('auto-day-toggle');
+    const adShow = () => {
+        adText.textContent = autoDay ? `Next day in ${dayLeft}s` : 'Auto day paused';
+        adBar.style.width = autoDay ? (dayLeft / AUTO_SECONDS * 100) + '%' : '0%';
+        adBtn.textContent = autoDay ? 'Auto: ON' : 'Auto: OFF';
+    };
+    adBtn.onclick = () => { autoDay = !autoDay; dayLeft = AUTO_SECONDS; adShow(); };
+    setInterval(() => {
+        const d = document.getElementById('day-counter').textContent;
+        if (d !== lastSeenDay) { lastSeenDay = d; dayLeft = AUTO_SECONDS; }   // pressing Advance Day resets the clock
+        if (!autoDay || !pyodideInstance || document.querySelector('.intro') || document.hidden) { adShow(); return; }
+        dayLeft--;
+        if (dayLeft <= 0) { dayLeft = AUTO_SECONDS; pyCall('advance_day'); }
+        adShow();
+    }, 1000);
 
     initPyodideEngine();           // start loading Python (takes a few seconds)
 });
